@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="A simple, fast real-time HTML editor. Type HTML and see the results instantly.">
+  <meta name="author" content="Ali Firat Celik">
+  <meta property="og:title" content="Real-time HTML Editor">
+  <meta property="og:description"
+    content="A simple, fast real-time HTML editor. Type HTML and see the results instantly.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://alifirat.xyz">
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📝</text></svg>">
+  <title>Real-time HTML Editor | Ali Firat Celik</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      height: 100%;
+      overflow: hidden;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .editor-pane,
+    .preview-pane {
+      flex: 1;
+      border: none;
+      width: 100%;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .resizer {
+      height: 4px;
+      background: #ccc;
+      cursor: row-resize;
+      flex-shrink: 0;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .resizer {
+        background: #666;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <iframe class="editor-pane" id="editbox"></iframe>
+    <div class="resizer" id="resizer"></div>
+    <iframe class="preview-pane" id="preview"></iframe>
+  </div>
+
+  <script>
+    const editbox = document.getElementById('editbox');
+    const preview = document.getElementById('preview');
+    const resizer = document.getElementById('resizer');
+    const container = document.querySelector('.container');
+
+    const editorStyles = `
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { height: 100%; overflow: hidden; }
+      textarea {
+        width: 100%;
+        height: 100%;
+        border: none;
+        padding: 12px;
+        font-family: 'Fira Code', 'Consolas', monospace;
+        font-size: 14px;
+        resize: none;
+        outline: none;
+        background: #f0f4f8;
+        color: #1a1a2e;
+      }
+      @media (prefers-color-scheme: dark) {
+        textarea {
+          background: #1a1a2e;
+          color: #e0e0e0;
+        }
+      }
+    `;
+
+    const defaultContent = `<h3>Live HTML Playground</h3>
+<p>Write your HTML code above and watch it render instantly below.</p>`;
+
+    const creditContent = `<div style="position:absolute; margin:.3em; bottom:0; right:0; opacity: 0.4;"><small><a href="https://alifirat.xyz" target="_top" style="color: inherit; text-decoration: none;">ali firat celik</a></small></div>`;
+
+    let previousContent = '';
+
+    function initEditor() {
+      const doc = editbox.contentDocument;
+      doc.open();
+      doc.write(`
+        <!DOCTYPE html>
+        <html>
+        <head><style>${editorStyles}</style></head>
+        <body>
+          <textarea id="code" spellcheck="false">${defaultContent}</textarea>
+        </body>
+        </html>
+      `);
+      doc.close();
+
+      const textarea = doc.getElementById('code');
+      textarea.focus();
+      textarea.select();
+
+      requestAnimationFrame(update);
+    }
+
+    function update() {
+      const textarea = editbox.contentDocument?.getElementById('code');
+      if (!textarea) {
+        requestAnimationFrame(update);
+        return;
+      }
+
+      const currentContent = textarea.value;
+
+      if (currentContent !== previousContent) {
+        previousContent = currentContent;
+
+        let content = currentContent;
+        if (currentContent.replace(/[\r\n\s]/g, '') === defaultContent.replace(/[\r\n\s]/g, '')) {
+          content += creditContent;
+        }
+
+        const oldPreview = document.getElementById('preview');
+        const newPreview = document.createElement('iframe');
+        newPreview.id = 'preview';
+        newPreview.className = 'preview-pane';
+        newPreview.style.cssText = oldPreview.style.cssText;
+        oldPreview.parentNode.replaceChild(newPreview, oldPreview);
+
+        const doc = newPreview.contentDocument;
+        doc.open();
+        doc.write(content);
+        doc.close();
+      }
+
+      requestAnimationFrame(update);
+    }
+
+    let isResizing = false;
+
+    resizer.addEventListener('pointerdown', (e) => {
+      isResizing = true;
+      resizer.setPointerCapture(e.pointerId);
+      document.body.style.cursor = 'row-resize';
+      document.body.style.userSelect = 'none';
+      editbox.style.pointerEvents = 'none';
+      preview.style.pointerEvents = 'none';
+    });
+
+    resizer.addEventListener('pointermove', (e) => {
+      if (!isResizing) return;
+      const containerRect = container.getBoundingClientRect();
+      const y = e.clientY - containerRect.top;
+      const height = containerRect.height;
+      const editorHeight = Math.max(0, Math.min(height - 4, y));
+      editbox.style.flex = `0 0 ${editorHeight}px`;
+      preview.style.flex = `0 0 ${height - editorHeight - 4}px`;
+    });
+
+    resizer.addEventListener('pointerup', (e) => {
+      isResizing = false;
+      resizer.releasePointerCapture(e.pointerId);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      editbox.style.pointerEvents = '';
+      preview.style.pointerEvents = '';
+    });
+
+    document.addEventListener('DOMContentLoaded', initEditor);
+  </script>
+</body>
+
+</html>
