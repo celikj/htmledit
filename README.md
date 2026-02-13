@@ -1,2 +1,2 @@
 # htmledit
-live html editor.
+htmledit.alifirat.xyz
